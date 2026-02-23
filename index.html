@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="shortcut icon" href="download-removebg-preview (1).png" type="image/x-icon">
+<title>DEVIXA — Habit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #ffffff0f;
+    --text: #f0eff5;
+    --muted: #6b6a7a;
+    --accent: #c8fa64;
+    --accent2: #7c6aff;
+    --accent3: #ff6a6a;
+    --glow: #c8fa6433;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.5;
+  }
+
+  /* Orb bg effects */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  .orb-1 { width: 500px; height: 500px; background: #7c6aff15; top: -100px; right: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: #c8fa6410; bottom: 100px; left: -80px; animation-delay: -4s; }
+
+  @keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, -30px) scale(1.05); }
+  }
+
+  /* Layout */
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .date-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 100px;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+    animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-3px);
+    border-color: #ffffff1a;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #ffffff05 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.8rem;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.accent2 { color: var(--accent2); }
+
+  .stat-icon {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    font-size: 1.4rem;
+    opacity: 0.4;
+  }
+
+  /* Section header */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  /* Add habit form */
+  .add-form {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+  }
+
+  .habit-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .habit-input::placeholder { color: var(--muted); }
+
+  .habit-input:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px #7c6aff20;
+  }
+
+  .emoji-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    color: var(--text);
+    font-size: 1.2rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.25s ease;
+    width: 56px;
+    text-align: center;
+  }
+
+  .add-btn {
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 22px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--glow);
+  }
+
+  .add-btn:active { transform: scale(0.97); }
+
+  /* Habits list */
+  .habits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  }
+
+  .habit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .habit-card:hover {
+    transform: translateY(-2px);
+    border-color: #ffffff15;
+    box-shadow: 0 8px 32px #00000040;
+  }
+
+  .habit-card.completed {
+    border-color: #c8fa6420;
+    background: linear-gradient(135deg, #111118 0%, #12180f 100%);
+  }
+
+  .habit-card.completed::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 0 4px 4px 0;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Check button */
+  .check-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .check-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    transform: scale(0);
+    border-radius: inherit;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .check-btn.done::before { transform: scale(1); }
+
+  .check-btn:hover {
+    border-color: var(--accent);
+    transform: scale(1.08);
+  }
+
+  .check-btn .checkmark {
+    position: relative;
+    z-index: 1;
+    font-size: 1.1rem;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.3s ease;
+    transform: scale(0.5) rotate(-10deg);
+  }
+
+  .check-btn.done .checkmark {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  /* Habit info */
+  .habit-emoji {
+    font-size: 1.6rem;
+    width: 40px;
+    text-align: center;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+  }
+
+  .habit-card:hover .habit-emoji { transform: scale(1.15) rotate(-5deg); }
+
+  .habit-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .habit-name {
+    font-size: 0.97rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .habit-card.completed .habit-name {
+    color: var(--accent);
+  }
+
+  .habit-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .streak-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .streak-badge.hot {
+    color: #ff9f43;
+  }
+
+  .streak-flame {
+    font-size: 0.8rem;
+    animation: flicker 1.5s ease-in-out infinite;
+  }
+
+  @keyframes flicker {
+    0%, 100% { transform: scale(1) rotate(-2deg); }
+    50% { transform: scale(1.15) rotate(2deg); }
+  }
+
+  /* Mini week dots */
+  .week-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: background 0.3s ease, transform 0.3s ease;
+  }
+
+  .dot.filled {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .dot.filled:nth-child(1) { transition-delay: 0.05s; }
+  .dot.filled:nth-child(2) { transition-delay: 0.1s; }
+  .dot.filled:nth-child(3) { transition-delay: 0.15s; }
+  .dot.filled:nth-child(4) { transition-delay: 0.2s; }
+  .dot.filled:nth-child(5) { transition-delay: 0.25s; }
+  .dot.filled:nth-child(6) { transition-delay: 0.3s; }
+  .dot.filled:nth-child(7) { transition-delay: 0.35s; }
+
+  /* Delete btn */
+  .delete-btn {
+    opacity: 0;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 6px;
+    border-radius: 8px;
+    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .habit-card:hover .delete-btn {
+    opacity: 1;
+  }
+
+  .delete-btn:hover {
+    color: var(--accent3);
+    background: #ff6a6a15;
+  }
+
+  /* Heatmap */
+  .heatmap-section {
+    margin-top: 40px;
+    animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+  }
+
+  .heatmap-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    overflow-x: auto;
+  }
+
+  .heatmap-grid {
+    display: flex;
+    gap: 4px;
+    min-width: max-content;
+  }
+
+  .heatmap-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .heatmap-cell {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background: var(--surface2);
+    transition: transform 0.2s ease, background 0.3s ease;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .heatmap-cell:hover {
+    transform: scale(1.5);
+    z-index: 10;
+  }
+
+  .heatmap-cell[data-level="1"] { background: #c8fa6430; }
+  .heatmap-cell[data-level="2"] { background: #c8fa6460; }
+  .heatmap-cell[data-level="3"] { background: #c8fa6490; }
+  .heatmap-cell[data-level="4"] { background: #c8fa64cc; }
+  .heatmap-cell[data-level="5"] { background: #c8fa64; }
+
+  .month-labels {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+    min-width: max-content;
+    padding-left: 0;
+  }
+
+  .month-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    width: 14px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .empty-state .icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    display: block;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+
+  /* Confetti particle */
+  .confetti {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    border-radius: 2px;
+    animation: confettiFall 1.2s ease-out forwards;
+  }
+
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(200px) rotate(720deg) scale(0); opacity: 0; }
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Notification toast */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent);
+    color: #0a0a0f;
+    padding: 12px 22px;
+    border-radius: 100px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .app { padding: 24px 16px 80px; }
+
+    header { margin-bottom: 28px; }
+    .logo { font-size: 1.7rem; }
+    .date-badge { font-size: 0.65rem; padding: 6px 10px; }
+
+    .stats-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .stat-card:last-child { grid-column: span 2; }
+    .stat-card { padding: 14px 16px; border-radius: 16px; }
+    .stat-value { font-size: 2.2rem; }
+    .stat-label { font-size: 0.65rem; }
+
+    .add-form { gap: 8px; margin-bottom: 24px; }
+    .emoji-select { width: 48px; padding: 12px 10px; font-size: 1.1rem; }
+    .habit-input { padding: 12px 14px; font-size: 0.9rem; }
+    .add-btn { padding: 12px 14px; font-size: 0.82rem; }
+
+    .habit-card { padding: 14px 14px; gap: 10px; border-radius: 16px; }
+    .habit-name { font-size: 0.9rem; }
+    .check-btn { width: 38px; height: 38px; border-radius: 12px; }
+    .habit-emoji { font-size: 1.3rem; width: 30px; }
+
+    .week-dots { display: none; }
+    .delete-btn { opacity: 1; }
+
+    .heatmap-wrapper { padding: 16px; }
+    .heatmap-cell { width: 11px; height: 11px; }
+    .month-label { width: 11px; font-size: 0.58rem; }
+  }
+
+  @media (max-width: 380px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .stat-card:last-child { grid-column: auto; }
+    .add-form { flex-wrap: wrap; }
+    .habit-input { flex: 1 1 100%; order: -1; }
+    .add-btn { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="app">
+  <header>
+    <div class="logo">DEVIXA<span>HABITS</span></div>
+    <div class="date-badge" id="dateBadge"></div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Today's Progress</div>
+      <div class="stat-value accent" id="statProgress">0%</div>
+      <div class="stat-icon">🎯</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best Streak</div>
+      <div class="stat-value" id="statBestStreak">0</div>
+      <div class="stat-icon">🔥</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Habits</div>
+      <div class="stat-value accent2" id="statTotal">0</div>
+      <div class="stat-icon">✨</div>
+    </div>
+  </div>
+
+  <!-- Add Form -->
+  <div class="add-form">
+    <div class="emoji-select" id="emojiPicker" title="Click to change emoji">🌱</div>
+    <input class="habit-input" id="habitInput" type="text" placeholder="Add a new habit..." maxlength="50" />
+    <button class="add-btn" onclick="addHabit()">+ Add Habit</button>
+  </div>
+
+  <!-- Habits -->
+  <div class="section-header">
+    <div class="section-title">Today</div>
+    <div class="streak-badge" id="completedCount" style="color: var(--muted); font-size: 0.8rem;">0 / 0 done</div>
+  </div>
+
+  <div class="habits-list" id="habitsList"></div>
+
+  <!-- Heatmap -->
+  <div class="heatmap-section">
+    <div class="section-header">
+      <div class="section-title">Activity</div>
+    </div>
+    <div class="heatmap-wrapper">
+      <div class="month-labels" id="monthLabels"></div>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const EMOJIS = ['🌱','💪','📚','🧘','🏃','💧','🎨','🎵','🧠','⚡','🌙','☀️','🍎','✍️','🏋️'];
+let emojiIdx = 0;
+
+function getState() {
+  return JSON.parse(localStorage.getItem('ritual_v1') || JSON.stringify({ habits: [], log: {} }));
+}
+
+function saveState(s) {
+  localStorage.setItem('ritual_v1', JSON.stringify(s));
+}
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function dateStr(d) {
+  return d.toISOString().slice(0,10);
+}
+
+// ── Emoji picker & input listeners (set up after DOM ready) ───────────────────
+function setupListeners() {
+  document.getElementById('emojiPicker').addEventListener('click', () => {
+    emojiIdx = (emojiIdx + 1) % EMOJIS.length;
+    document.getElementById('emojiPicker').textContent = EMOJIS[emojiIdx];
+  });
+
+  document.getElementById('habitInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addHabit();
+  });
+}
+
+// ── Add habit ─────────────────────────────────────────────────────────────────
+function addHabit() {
+  const input = document.getElementById('habitInput');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  
+  const s = getState();
+  const habit = {
+    id: Date.now().toString(),
+    name,
+    emoji: EMOJIS[emojiIdx],
+    createdAt: today()
+  };
+  s.habits.push(habit);
+  saveState(s);
+  input.value = '';
+  render();
+  showToast(`${habit.emoji} "${name}" added!`);
+}
+
+// ── Toggle habit ──────────────────────────────────────────────────────────────
+function toggleHabit(id) {
+  const s = getState();
+  const t = today();
+  if (!s.log[t]) s.log[t] = [];
+  const idx = s.log[t].indexOf(id);
+  if (idx === -1) {
+    s.log[t].push(id);
+    spawnConfetti();
+    showToast('🎉 Habit completed!');
+  } else {
+    s.log[t].splice(idx, 1);
+  }
+  saveState(s);
+  render();
+}
+
+// ── Delete habit ──────────────────────────────────────────────────────────────
+function deleteHabit(id) {
+  const s = getState();
+  s.habits = s.habits.filter(h => h.id !== id);
+  // clean log
+  for (const d in s.log) {
+    s.log[d] = s.log[d].filter(x => x !== id);
+  }
+  saveState(s);
+  render();
+  showToast('Habit removed');
+}
+
+// ── Streak calc ────────────────────────────────────────────────────────────────
+function getStreak(id) {
+  const s = getState();
+  let streak = 0;
+  const d = new Date();
+  // check if completed today, if not start from yesterday
+  const todayKey = today();
+  if (!s.log[todayKey]?.includes(id)) d.setDate(d.getDate() - 1);
+  
+  for (let i = 0; i < 365; i++) {
+    const key = dateStr(d);
+    if (s.log[key]?.includes(id)) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else break;
+  }
+  return streak;
+}
+
+function getWeekHistory(id) {
+  const s = getState();
+  const days = [];
+  const d = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const dd = new Date(d);
+    dd.setDate(d.getDate() - i);
+    const key = dateStr(dd);
+    days.push(s.log[key]?.includes(id) ? 1 : 0);
+  }
+  return days;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function render() {
+  const s = getState();
+  const t = today();
+  const doneToday = s.log[t] || [];
+  
+  // Date badge
+  document.getElementById('dateBadge').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  
+  // Stats
+  const total = s.habits.length;
+  const doneCount = doneToday.filter(id => s.habits.find(h => h.id === id)).length;
+  const pct = total === 0 ? 0 : Math.round(doneCount / total * 100);
+  document.getElementById('statProgress').textContent = pct + '%';
+  document.getElementById('statTotal').textContent = total;
+  
+  // Best streak across all habits
+  const best = s.habits.reduce((max, h) => Math.max(max, getStreak(h.id)), 0);
+  document.getElementById('statBestStreak').textContent = best;
+  document.getElementById('completedCount').textContent = `${doneCount} / ${total} done`;
+  
+  // Habits list
+  const list = document.getElementById('habitsList');
+  if (s.habits.length === 0) {
+    list.innerHTML = `<div class="empty-state"><span class="icon">🌱</span>No habits yet. Start building your ritual!</div>`;
+  } else {
+    list.innerHTML = s.habits.map(h => {
+      const done = doneToday.includes(h.id);
+      const streak = getStreak(h.id);
+      const week = getWeekHistory(h.id);
+      const isHot = streak >= 3;
+      return `
+        <div class="habit-card ${done ? 'completed' : ''}" id="card-${h.id}">
+          <button class="check-btn ${done ? 'done' : ''}" onclick="toggleHabit('${h.id}')">
+            <span class="checkmark">✓</span>
+          </button>
+          <div class="habit-emoji">${h.emoji}</div>
+          <div class="habit-info">
+            <div class="habit-name">${escHtml(h.name)}</div>
+            <div class="habit-meta">
+              <div class="streak-badge ${isHot ? 'hot' : ''}">
+                <span class="streak-flame">${isHot ? '🔥' : '💤'}</span>
+                ${streak} day${streak !== 1 ? 's' : ''}
+              </div>
+              <div class="week-dots">
+                ${week.map(v => `<div class="dot ${v ? 'filled' : ''}"></div>`).join('')}
+              </div>
+            </div>
+          </div>
+          <button class="delete-btn" onclick="deleteHabit('${h.id}')" title="Delete">✕</button>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  renderHeatmap();
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Heatmap ────────────────────────────────────────────────────────────────────
+function renderHeatmap() {
+  const s = getState();
+  const grid = document.getElementById('heatmapGrid');
+  const monthLbl = document.getElementById('monthLabels');
+  
+  const weeks = 18;
+  const now = new Date();
+  // start from Sunday of (weeks) weeks ago
+  const start = new Date(now);
+  start.setDate(start.getDate() - (weeks * 7) + 1);
+  
+  let cols = '';
+  let lbls = '';
+  let prevMonth = -1;
+  let labelOffset = 0;
+  
+  for (let w = 0; w < weeks; w++) {
+    let col = '';
+    for (let d = 0; d < 7; d++) {
+      const dd = new Date(start);
+      dd.setDate(start.getDate() + w * 7 + d);
+      const key = dateStr(dd);
+      const total = s.habits.length;
+      const done = s.log[key]?.filter(id => s.habits.find(h => h.id === id)).length || 0;
+      const level = total === 0 ? 0 : Math.min(5, Math.ceil(done / total * 5));
+      col += `<div class="heatmap-cell" data-level="${level}" data-date="${key}" title="${key}: ${done}/${total} habits"></div>`;
+    }
+    cols += `<div class="heatmap-col">${col}</div>`;
+    
+    // Month label on first week of new month
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + w * 7);
+    if (weekStart.getMonth() !== prevMonth) {
+      prevMonth = weekStart.getMonth();
+      lbls += `<div class="month-label" style="margin-left:${labelOffset > 0 ? '0' : '0'}px">${weekStart.toLocaleString('en',{month:'short'})}</div>`;
+    } else {
+      lbls += `<div class="month-label"></div>`;
+    }
+  }
+  
+  grid.innerHTML = cols;
+  monthLbl.innerHTML = lbls;
+}
+
+// ── Confetti ───────────────────────────────────────────────────────────────────
+function spawnConfetti() {
+  const colors = ['#c8fa64','#7c6aff','#ff6a6a','#ffd93d','#fff'];
+  for (let i = 0; i < 18; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    const x = 30 + Math.random() * 40;
+    el.style.cssText = `
+      left: ${x}vw;
+      top: ${20 + Math.random() * 30}vh;
+      width: ${6 + Math.random() * 8}px;
+      height: ${6 + Math.random() * 8}px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      animation-delay: ${Math.random() * 0.4}s;
+      animation-duration: ${0.9 + Math.random() * 0.6}s;
+    `;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setupListeners();
+  render();
+});
+</script>
+</body>
+</html>
